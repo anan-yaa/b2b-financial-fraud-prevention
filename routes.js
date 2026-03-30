@@ -8,7 +8,9 @@ const ROLES = {
     VENDOR: 'VENDOR',
     BUYER: 'BUYER',
     BANK: 'BANK',
-    AUDITOR: 'AUDITOR'
+    AUDITOR: 'AUDITOR',
+    INVESTOR: 'INVESTOR',
+    ADMIN: 'ADMIN'
 };
 
 // Middleware to validate a single role
@@ -245,9 +247,27 @@ router.post('/finance', validateRole(ROLES.BANK), async (req, res) => {
         }
     }
 });
+// Add this to your routes.js
+router.post('/pay', validateAnyRole(['BANK', 'ADMIN']), async (req, res) => {
+    try {
+        const { paymentId, invoiceId, amount, toWallet, role } = req.body;
+        
+        // Connect to Fabric using the specific role
+        const { contract, gateway } = await connectFabric(role);
 
-// GET /invoices - Get all invoices (AUDITOR, BANK only)
-router.get('/invoices', validateAnyRole([ROLES.AUDITOR, ROLES.BANK]), async (req, res) => {
+        console.log(`Processing payment ${paymentId} for invoice ${invoiceId} using role: ${role}`);
+
+        // Call the ProcessPayment function from your Go chaincode
+        await contract.submitTransaction('ProcessPayment', paymentId, invoiceId, amount, toWallet);
+
+        await gateway.disconnect();
+        res.json({ success: true, message: "Payment processed successfully" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// GET /invoices - Get all invoices (AUDITOR, BANK, INVESTOR only)
+router.get('/invoices', validateAnyRole([ROLES.AUDITOR, ROLES.BANK, ROLES.INVESTOR]), async (req, res) => {
     let gateway;
     try {
         const { role } = req.query;
@@ -309,6 +329,67 @@ router.get('/invoice/:id', async (req, res) => {
             }
         }
         
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (gateway) {
+            await gateway.disconnect();
+        }
+    }
+});
+
+// GET /invoice/:id/history - Get complete transaction history for an invoice (AUDITOR, BANK, INVESTOR only)
+router.get('/invoice/:id/history', validateAnyRole([ROLES.AUDITOR, ROLES.BANK, ROLES.INVESTOR]), async (req, res) => {
+    let gateway;
+    try {
+        const { id } = req.params;
+        const { role } = req.query;
+        
+        console.log(`Getting invoice history for ${id} using role: ${role}`);
+        const { gateway: g, contract } = await connectFabric(role);
+        gateway = g;
+        
+        const result = await contract.evaluateTransaction('GetInvoiceHistory', id);
+        const history = JSON.parse(result.toString());
+        res.json(history);
+        
+    } catch (error) {
+        console.error('GET /invoice/:id/history error:', error);
+        
+        // Log detailed peer response if available
+        if (error.responses && error.responses.length > 0) {
+            console.error('Peer response details:', error.responses[0].response);
+            if (error.responses[0].response && error.responses[0].response.message) {
+                console.error('Peer response message:', error.responses[0].response.message);
+            }
+        }
+        
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (gateway) {
+            await gateway.disconnect();
+        }
+    }
+});
+
+// GET /invoice/:id/history - Get complete transaction history for an invoice (AUDITOR, BANK, INVESTOR, ADMIN only)
+router.get('/invoice/:id/history', validateAnyRole([ROLES.AUDITOR, ROLES.BANK, ROLES.INVESTOR, ROLES.ADMIN]), async (req, res) => {
+    let gateway;
+    try {
+        const { id } = req.params;
+        const { role } = req.query; // Ensure the role is passed in the URL: ?role=INVESTOR
+        
+        console.log(`Getting invoice history for ${id} using role: ${role}`);
+        const { gateway: g, contract } = await connectFabric(role);
+        gateway = g;
+        
+        // This calls the GetInvoiceHistory function we talked about in the Go chaincode
+        const result = await contract.evaluateTransaction('GetInvoiceHistory', id);
+        const history = JSON.parse(result.toString());
+        
+        res.json(history);
+        
+    } catch (error) {
+        console.error('GET /invoice/:id/history error:', error);
         res.status(500).json({ error: error.message });
     } finally {
         if (gateway) {

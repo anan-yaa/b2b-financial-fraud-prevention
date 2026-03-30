@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
@@ -29,6 +30,9 @@ type Invoice struct {
 	SystemValidated  bool   `json:"systemValidated"`
 	BuyerApproved    bool   `json:"buyerApproved"`
 	Timestamp        string `json:"timestamp"`
+	CreatorID        string `json:"creatorId"`
+	LastModifiedBy   string `json:"lastModifiedBy"`
+	Signature        string `json:"signature"`
 }
 
 type PurchaseOrder struct {
@@ -73,6 +77,11 @@ const (
 )
 
 func (s *SmartContract) CreateInvoice(ctx contractapi.TransactionContextInterface, invoiceId string, vendor string, buyer string, amount string, purchaseOrderId string, deliveryProofHash string) error {
+	// Check investor read-only restriction
+	if err := s.checkInvestorReadOnly(ctx); err != nil {
+		return err
+	}
+
 	// Check if invoice already exists
 	exists, err := s.InvoiceExists(ctx, invoiceId)
 	if err != nil {
@@ -132,6 +141,15 @@ func (s *SmartContract) CreateInvoice(ctx contractapi.TransactionContextInterfac
 	}
 
 	// Create invoice with system validation flag
+	// Get client identity for audit trail
+	clientID, err := ctx.GetClientIdentity().GetID()
+	if err != nil {
+		return fmt.Errorf("failed to get client identity: %v", err)
+	}
+
+	// Get transaction ID for digital signature
+	txID := ctx.GetStub().GetTxID()
+
 	invoice := Invoice{
 		InvoiceID:         invoiceId,
 		Vendor:            vendor,
@@ -143,6 +161,9 @@ func (s *SmartContract) CreateInvoice(ctx contractapi.TransactionContextInterfac
 		SystemValidated:   true,  // System has validated all rules
 		BuyerApproved:     false, // Buyer needs to approve
 		Timestamp:         time.Now().Format(time.RFC3339),
+		CreatorID:         clientID,
+		LastModifiedBy:    clientID,
+		Signature:         txID,
 	}
 
 	invoiceJSON, err := json.Marshal(invoice)
@@ -154,6 +175,11 @@ func (s *SmartContract) CreateInvoice(ctx contractapi.TransactionContextInterfac
 }
 
 func (s *SmartContract) VerifyInvoice(ctx contractapi.TransactionContextInterface, invoiceId string) error {
+	// Check investor read-only restriction
+	if err := s.checkInvestorReadOnly(ctx); err != nil {
+		return err
+	}
+
 	invoice, err := s.ReadInvoice(ctx, invoiceId)
 	if err != nil {
 		return err
@@ -170,9 +196,20 @@ func (s *SmartContract) VerifyInvoice(ctx contractapi.TransactionContextInterfac
 	}
 
 	// Update status to validated (buyer approved)
+	// Get client identity for audit trail
+	clientID, err := ctx.GetClientIdentity().GetID()
+	if err != nil {
+		return fmt.Errorf("failed to get client identity: %v", err)
+	}
+
+	// Get transaction ID for digital signature
+	txID := ctx.GetStub().GetTxID()
+
 	invoice.Status = StatusValidated
 	invoice.BuyerApproved = true
 	invoice.Timestamp = time.Now().Format(time.RFC3339)
+	invoice.LastModifiedBy = clientID
+	invoice.Signature = txID
 
 	invoiceJSON, err := json.Marshal(invoice)
 	if err != nil {
@@ -183,6 +220,11 @@ func (s *SmartContract) VerifyInvoice(ctx contractapi.TransactionContextInterfac
 }
 
 func (s *SmartContract) ApproveFinancing(ctx contractapi.TransactionContextInterface, invoiceId string) error {
+	// Check investor read-only restriction
+	if err := s.checkInvestorReadOnly(ctx); err != nil {
+		return err
+	}
+
 	invoice, err := s.ReadInvoice(ctx, invoiceId)
 	if err != nil {
 		return err
@@ -202,8 +244,19 @@ func (s *SmartContract) ApproveFinancing(ctx contractapi.TransactionContextInter
 	}
 
 	// Approve financing - only after all validations and approvals
+	// Get client identity for audit trail
+	clientID, err := ctx.GetClientIdentity().GetID()
+	if err != nil {
+		return fmt.Errorf("failed to get client identity: %v", err)
+	}
+
+	// Get transaction ID for digital signature
+	txID := ctx.GetStub().GetTxID()
+
 	invoice.Status = StatusFinanced
 	invoice.Timestamp = time.Now().Format(time.RFC3339)
+	invoice.LastModifiedBy = clientID
+	invoice.Signature = txID
 
 	invoiceJSON, err := json.Marshal(invoice)
 	if err != nil {
@@ -254,6 +307,63 @@ func (s *SmartContract) ReadInvoice(ctx contractapi.TransactionContextInterface,
 	}
 
 	return &invoice, nil
+}
+
+// GetInvoiceHistory returns the complete transaction history for an invoice
+func (s *SmartContract) GetInvoiceHistory(ctx contractapi.TransactionContextInterface, invoiceId string) ([]interface{}, error) {
+	resultsIterator, err := ctx.GetStub().GetHistoryForKey(invoiceId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get history for invoice %s: %v", invoiceId, err)
+	}
+	defer resultsIterator.Close()
+
+	var history []interface{}
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		record := make(map[string]interface{})
+		record["txId"] = queryResponse.TxId
+		record["timestamp"] = time.Unix(queryResponse.Timestamp.Seconds, int64(queryResponse.Timestamp.Nanos)).Format(time.RFC3339)
+		record["isDelete"] = queryResponse.IsDelete
+
+		if !queryResponse.IsDelete {
+			var invoice Invoice
+			err = json.Unmarshal(queryResponse.Value, &invoice)
+			if err != nil {
+				return nil, err
+			}
+			record["value"] = invoice
+		}
+
+		history = append(history, record)
+	}
+
+	return history, nil
+}
+
+// checkInvestorReadOnly checks if the caller is an investor and blocks write operations
+func (s *SmartContract) checkInvestorReadOnly(ctx contractapi.TransactionContextInterface) error {
+	// Check if the client has the investor role attribute
+	cert, err := ctx.GetClientIdentity().GetX509Certificate()
+	if err != nil {
+		return fmt.Errorf("failed to get certificate: %v", err)
+	}
+
+	// Check role attribute in certificate
+	for _, ext := range cert.Extensions {
+		if ext.Id.Equal([]int{2, 5, 29, 17}) { // Subject Alternative Name
+			// Parse the extension to check for role=INVESTOR
+			value := string(ext.Value)
+			if strings.Contains(value, "role=INVESTOR") {
+				return fmt.Errorf("investors have read-only access and cannot perform write operations")
+			}
+		}
+	}
+
+	return nil
 }
 
 func (s *SmartContract) InvoiceExists(ctx contractapi.TransactionContextInterface, invoiceId string) (bool, error) {
