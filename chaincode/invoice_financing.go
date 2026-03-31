@@ -109,6 +109,9 @@ func (s *SmartContract) CreateInvoice(ctx contractapi.TransactionContextInterfac
 	if po.Status != POStatusActive {
 		return fmt.Errorf("purchase order %s is not active", purchaseOrderId)
 	}
+	if amount != po.Amount {
+    return fmt.Errorf("MISREPORTING ERROR: Invoice amount (%s) does not match Purchase Order amount (%s)", amount, po.Amount)
+    }
 
 	// 3. Check if amount is within contract limit
 	vendorInfo, err := s.ReadVendor(ctx, vendor)
@@ -503,53 +506,72 @@ func (s *SmartContract) PurchaseOrderExists(ctx contractapi.TransactionContextIn
 
 // Payment and Fund Diversion Prevention Functions
 func (s *SmartContract) ProcessPayment(ctx contractapi.TransactionContextInterface, paymentId string, invoiceId string, amount string, toWallet string) error {
-	// Rule 1: Invoice must be approved and financed
-	invoice, err := s.ReadInvoice(ctx, invoiceId)
-	if err != nil {
-		return fmt.Errorf("failed to read invoice: %v", err)
-	}
-	if invoice.Status != StatusFinanced {
-		return fmt.Errorf("invoice %s is not approved for payment. Current status: %s", invoiceId, invoice.Status)
-	}
+    // 1. Fetch the Invoice from World State
+    invoice, err := s.ReadInvoice(ctx, invoiceId)
+    if err != nil {
+        return fmt.Errorf("failed to read invoice: %v", err)
+    }
 
-	// Rule 2: Vendor must match invoice vendor
-	vendor, err := s.ReadVendor(ctx, invoice.Vendor)
-	if err != nil {
-		return fmt.Errorf("failed to read vendor: %v", err)
-	}
+    // 2. THE LOCK: Check if invoice is in the correct state
+    // Once PAID, it will no longer equal StatusFinanced, blocking double disbursement
+    if invoice.Status != StatusFinanced {
+        return fmt.Errorf("double disbursement blocked: invoice %s is in status %s and cannot be paid again", invoiceId, invoice.Status)
+    }
 
-	// Rule 3: Amount must match invoice amount
-	if amount != invoice.Amount {
-		return fmt.Errorf("payment amount %s does not match invoice amount %s", amount, invoice.Amount)
-	}
+    // 3. Validation: Vendor check
+    vendor, err := s.ReadVendor(ctx, invoice.Vendor)
+    if err != nil {
+        return fmt.Errorf("failed to read vendor: %v", err)
+    }
 
-	// Rule 4: Payment must go to authorized wallet only
-	if toWallet != vendor.AuthorizedWallet {
-		return fmt.Errorf("payment wallet %s is not authorized for vendor %s. Authorized wallet: %s", toWallet, invoice.Vendor, vendor.AuthorizedWallet)
-	}
+    // 4. Validation: Amount check (Prevents misreporting during payment)
+    if amount != invoice.Amount {
+        return fmt.Errorf("payment amount %s does not match invoice amount %s", amount, invoice.Amount)
+    }
 
-	// Rule 5: Vendor must have certified identity
-	if !vendor.CertifiedIdentity {
-		return fmt.Errorf("vendor %s does not have certified identity", invoice.Vendor)
-	}
+    // 5. Validation: Wallet check (Prevents Fund Diversion)
+    if toWallet != vendor.AuthorizedWallet {
+        return fmt.Errorf("FUND DIVERSION BLOCKED: payment wallet %s is not authorized for vendor %s. Authorized wallet: %s", toWallet, invoice.Vendor, vendor.AuthorizedWallet)
+    }
 
-	// Create payment record
-	payment := Payment{
-		PaymentID: paymentId,
-		InvoiceID: invoiceId,
-		Vendor:    invoice.Vendor,
-		Amount:    amount,
-		ToWallet:  toWallet,
-		Status:    PaymentStatusCompleted,
-		Timestamp: time.Now().Format(time.RFC3339),
-	}
+    // 6. Validation: Identity check
+    if !vendor.CertifiedIdentity {
+        return fmt.Errorf("vendor %s does not have certified identity", invoice.Vendor)
+    }
 
-	paymentJSON, err := json.Marshal(payment)
-	if err != nil {
-		return err
-	}
+    // --- STATE TRANSITION: Update Invoice to PAID ---
+    invoice.Status = "PAID" 
+    invoice.Timestamp = time.Now().Format(time.RFC3339)
+    
+    invoiceJSON, err := json.Marshal(invoice)
+    if err != nil {
+        return fmt.Errorf("failed to marshal updated invoice: %v", err)
+    }
 
-	return ctx.GetStub().PutState("PAYMENT_"+paymentId, paymentJSON)
+    // Save updated Invoice back to ledger (This is the crucial step!)
+    err = ctx.GetStub().PutState(invoiceId, invoiceJSON)
+    if err != nil {
+        return fmt.Errorf("failed to update invoice status: %v", err)
+    }
+
+    // --- RECORD CREATION: Create Payment Object ---
+    payment := Payment{
+        PaymentID: paymentId,
+        InvoiceID: invoiceId,
+        Vendor:    invoice.Vendor,
+        Amount:    amount,
+        ToWallet:  toWallet,
+        Status:    PaymentStatusCompleted,
+        Timestamp: time.Now().Format(time.RFC3339),
+    }
+
+    paymentJSON, err := json.Marshal(payment)
+    if err != nil {
+        return fmt.Errorf("failed to marshal payment record: %v", err)
+    }
+
+    // Save Payment record to ledger
+    return ctx.GetStub().PutState("PAYMENT_"+paymentId, paymentJSON)
 }
 
 func (s *SmartContract) ReadPayment(ctx contractapi.TransactionContextInterface, paymentId string) (*Payment, error) {

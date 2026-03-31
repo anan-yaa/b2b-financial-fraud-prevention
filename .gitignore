@@ -135,3 +135,7 @@ temp/
 *.njsproj
 *.sln
 *.sw?
+fabric-ca/
+wallet/
+node_modules/
+.env

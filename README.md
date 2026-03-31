@@ -31,7 +31,7 @@ This system implements a comprehensive fraud prevention mechanism using blockcha
 - **Real-time Visibility**: Authorized parties have real-time read access
 - **Audit Trail**: Complete transaction history with timestamps
 
-### 4. Double Financing Prevention
+### 4. Double Disbursement Prevention
 - **Unique Invoice Hash**: Each invoice receives a unique hash identifier
 - **Status Locking**: Invoice states prevent multiple financing attempts
 - **Single Source of Truth**: Blockchain serves as the authoritative record
@@ -78,14 +78,25 @@ go mod tidy
 cd ..
 ```
 
-### 3. Setup Hyperledger Fabric
+### 3. Setup Fabric CA and Hyperledger Fabric
 ```bash
-# Download Fabric binaries and samples
-curl -sSL https://bit.ly/2ysbOFE | bash -s
+# Start Fabric CA server
+./startCA.sh
 
-# Set environment variables
-export PATH=${PWD}/bin:$PATH
-export FABRIC_CFG_PATH=${PWD}/config/
+# Enroll bootstrap admin
+node enrollAdmin.js
+
+# Register and enroll role-based users
+node registerUser.js
+
+# Start Fabric network (if using test-network)
+cd fabric-samples/test-network
+./network.sh up createChannel
+
+# Deploy chaincode
+./network.sh deployCC -ccn basic -ccp ../../chaincode -ccl go -ccs 4 -ccv 1.1
+
+cd ../../
 ```
 
 ## Configuration
@@ -107,29 +118,32 @@ CHAINCODE_NAME=basic
 
 ## Usage
 
-### 1. Start the Fabric Network
+### 1. Start Fabric CA Server
+```bash
+./startCA.sh
+```
+
+### 2. Enroll and Register Identities
+```bash
+# Enroll bootstrap admin
+node enrollAdmin.js
+
+# Register role-based users
+node registerUser.js
+```
+
+### 3. Start Fabric Network (if not already running)
 ```bash
 cd fabric-samples/test-network
 ./network.sh up createChannel
-```
 
-### 2. Deploy Chaincode
-```bash
-./network.sh deployCC -ccn basic -ccp ../chaincode -ccl go
-```
+# Deploy chaincode with updated version
+./network.sh deployCC -ccn basic -ccp ../../chaincode -ccl go -ccs 4 -ccv 1.1
 
-### 3. Enroll Admin Identity
-```bash
 cd ../../
-node enrollAdmin.js
 ```
 
-### 4. Import Additional Identities
-```bash
-node importIdentity.js
-```
-
-### 5. Start the API Server
+### 4. Start the API Server
 ```bash
 node app.js
 ```
@@ -194,31 +208,6 @@ All POST requests require a `role` parameter:
 - Immutable timestamp records
 - Digital signatures for all participants
 
-## Testing
-
-### Unit Tests
-```bash
-# Run Node.js tests
-npm test
-
-# Run Go tests
-cd chaincode
-go test
-```
-
-### Integration Tests
-```bash
-# Test API endpoints
-curl -X POST "http://localhost:3000/vendor" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "vendorId": "VEND001",
-    "name": "Test Vendor",
-    "maxLimit": "100000",
-    "authorizedWallet": "0xABC123",
-    "role": "ADMIN"
-  }'
-```
 
 ## Troubleshooting
 
@@ -239,32 +228,91 @@ curl -X POST "http://localhost:3000/vendor" \
    - Check transaction endorsement requirements
    - Verify organization membership
 
-### Debug Mode
-Enable detailed logging by setting:
-```bash
-export HFC_LOGGING=debug
-export GRPC_TRACE=all
-export GRPC_VERBOSITY=debug
-```
-
 ## Project Structure
 
 ```
 b2b-financial-fraud-prevention/
-├── chaincode/                  # Go chaincode
-│   ├── go.mod                  # Go module definition
-│   ├── go.sum                  # Go dependencies
-│   └── invoice_financing.go    # Main chaincode
-├── fabric/                     # Fabric configuration
-│   └── connection-org1.json    # Connection profile
-├── wallet/                     # Fabric wallet (gitignored)
-├── vendor/                     # Go dependencies (gitignored)
-├── app.js                      # Express server
-├── fabric.js                   # Fabric connection logic
-├── routes.js                   # API routes
-├── enrollAdmin.js              # Admin enrollment
-├── importIdentity.js           # Identity management
-├── package.json                # Node.js dependencies
-└── README.md                   # This file
+├── chaincode/                     # Go chaincode
+│   ├── go.mod                     # Go module definition
+│   ├── go.sum                     # Go dependencies
+│   └── invoice_financing.go       # Main chaincode with audit metadata
+├── fabric/                        # Fabric configuration
+│   └── connection-org1.json       # Connection profile (Fabric CA enabled)
+├── fabric-ca/                     # Fabric CA certificates and config
+│   └── org1/                      # Org1 CA certificates
+│       ├── fabric-ca-server-config.yaml
+│       ├── ca.org1.example.com-cert.pem
+│       └── priv_sk
+├── wallet/                        # Fabric CA-generated identities (gitignored)
+│   ├── Admin@org1.example.com.id  # Bootstrap admin identity
+│   ├── VENDORUser.id              # Vendor role identity
+│   ├── BUYERUser.id               # Buyer role identity
+│   ├── BANKUser.id                # Bank role identity
+│   ├── AUDITORUser.id             # Auditor role identity
+│   ├── INVESTORUser.id            # Investor role identity
+│   └── ADMINUser.id               # Admin role identity
+├── docker-compose-ca.yaml         # Fabric CA server configuration
+├── enrollAdmin.js                 # Bootstrap admin enrollment script
+├── registerUser.js                # Role-based user registration script
+├── startCA.sh                     # Fabric CA server startup script
+├── app.js                         # Express server
+├── fabric.js                      # Fabric connection logic (CA-aware)
+├── routes.js                      # API routes with role-based access
+├── importIdentity.js              # Legacy identity import (deprecated)
+├── package.json                   # Node.js dependencies
+├── .gitignore                     # Git ignore rules
+└── README.md                      # This file
 ```
 
+## Identity Management (Fabric CA)
+
+This system uses **Fabric CA** for dynamic identity management instead of static cryptogen certificates.
+
+### Identity Setup
+
+1. **Start Fabric CA Server:**
+   ```bash
+   ./startCA.sh
+   ```
+
+2. **Enroll Bootstrap Admin:**
+   ```bash
+   node enrollAdmin.js
+   ```
+
+3. **Register Role-Based Users:**
+   ```bash
+   node registerUser.js
+   ```
+
+### Generated Identities
+
+- **Admin@org1.example.com** - Bootstrap administrator
+- **VENDORUser** - Vendor role with invoice creation permissions
+- **BUYERUser** - Buyer role with invoice verification permissions
+- **BANKUser** - Bank role with financing approval permissions
+- **AUDITORUser** - Auditor role with read-only access
+- **INVESTORUser** - Investor role with read-only access (financial transparency)
+- **ADMINUser** - Admin role with full system access
+
+### Role-Based Access Control
+
+Each identity includes role attributes that enforce:
+- **Write Operations**: VENDOR, BUYER, BANK, ADMIN
+- **Read-Only Operations**: AUDITOR, INVESTOR
+- **Audit Trail**: All operations tracked with CreatorID and LastModifiedBy
+- **Digital Signatures**: Each transaction signed with unique transaction ID
+
+## Configuration
+
+### Connection Profile
+The `fabric/connection-org1.json` is configured for Fabric CA:
+- **CA Endpoint**: `https://localhost:7054`
+- **TLS Certificates**: Local Fabric CA certificates
+- **Discovery**: Enabled for Docker networking
+
+### Wallet Management
+Identities are stored in `./wallet/` directory:
+- **Format**: File system wallet using fabric-network SDK
+- **Dynamic**: New identities can be registered via Fabric CA
+- **Role Attributes**: Each identity includes role-based permissions
