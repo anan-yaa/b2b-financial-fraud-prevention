@@ -72,7 +72,7 @@ async function main() {
         console.log('💾 Successfully enrolled and imported user:', userId, 'into the wallet');
 
         // Also create role-based identities for testing
-        const roles = ['VENDOR', 'BUYER', 'BANK', 'AUDITOR', 'INVESTOR', 'ADMIN'];
+        const roles = ['VENDOR', 'BUYER', 'AUDITOR', 'INVESTOR', 'ADMIN'];
         
         for (const role of roles) {
             const roleId = `${role}User`;

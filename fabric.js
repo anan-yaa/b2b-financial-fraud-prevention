@@ -18,10 +18,9 @@ async function connectFabric(role = 'VENDOR') {
         const roleToIdentityMap = {
             'VENDOR': 'VENDORUser',
             'BUYER': 'BUYERUser', 
-            'BANK': 'BANKUser',
+            'ADMIN': 'ADMINUser',
             'AUDITOR': 'AUDITORUser',
             'INVESTOR': 'INVESTORUser',
-            'ADMIN': 'ADMINUser',
             'admin': 'Admin@org1.example.com', // Fallback for bootstrap admin
             'ADMIN@org1.example.com': 'Admin@org1.example.com' // Full admin identity
         };

@@ -4,7 +4,7 @@ A Hyperledger Fabric-based blockchain solution for preventing financial fraud in
 
 ## Overview
 
-This system implements a comprehensive fraud prevention mechanism using blockchain technology to ensure transparency, immutability, and multi-party validation in financial transactions between vendors, buyers, and banks.
+This system implements a comprehensive fraud prevention mechanism using blockchain technology to ensure transparency, immutability, and multi-party validation in financial transactions between vendors, buyers, and administrators.
 
 ## Fraud Prevention Features
 
@@ -48,7 +48,7 @@ This system implements a comprehensive fraud prevention mechanism using blockcha
 ### Participants
 - **Vendor**: Submits invoices and receives payments
 - **Buyer**: Verifies invoices and approves transactions
-- **Bank**: Provides financing and processes payments
+- **Admin**: Provides financing and processes payments
 - **Auditor**: Monitors transactions for compliance
 
 ## Prerequisites
@@ -159,10 +159,10 @@ The API server will start on `http://localhost:3000`
 ### Invoice Operations
 - `POST /invoice` - Create a new invoice (Vendor only)
 - `POST /verify` - Verify an invoice (Buyer only)
-- `POST /finance` - Approve financing (Bank only)
+- `POST /finance` - Approve financing (Admin only)
 
 ### Query Operations
-- `GET /invoices` - Get all invoices (Auditor, Bank only)
+- `GET /invoices` - Get all invoices (Auditor, Admin, Investor only)
 - `GET /invoice/:id` - Get specific invoice by ID
 
 ### Request Format
@@ -171,7 +171,7 @@ All POST requests require a `role` parameter:
 {
   "field1": "value1",
   "field2": "value2",
-  "role": "VENDOR|BUYER|BANK|AUDITOR"
+  "role": "VENDOR|BUYER|ADMIN|AUDITOR"
 }
 ```
 
@@ -247,10 +247,9 @@ b2b-financial-fraud-prevention/
 │   ├── Admin@org1.example.com.id  # Bootstrap admin identity
 │   ├── VENDORUser.id              # Vendor role identity
 │   ├── BUYERUser.id               # Buyer role identity
-│   ├── BANKUser.id                # Bank role identity
+│   ├── ADMINUser.id                # Admin role identity
 │   ├── AUDITORUser.id             # Auditor role identity
 │   ├── INVESTORUser.id            # Investor role identity
-│   └── ADMINUser.id               # Admin role identity
 ├── docker-compose-ca.yaml         # Fabric CA server configuration
 ├── enrollAdmin.js                 # Bootstrap admin enrollment script
 ├── registerUser.js                # Role-based user registration script
@@ -290,15 +289,14 @@ This system uses **Fabric CA** for dynamic identity management instead of static
 - **Admin@org1.example.com** - Bootstrap administrator
 - **VENDORUser** - Vendor role with invoice creation permissions
 - **BUYERUser** - Buyer role with invoice verification permissions
-- **BANKUser** - Bank role with financing approval permissions
+- **ADMINUser** - Admin role with financing approval permissions
 - **AUDITORUser** - Auditor role with read-only access
 - **INVESTORUser** - Investor role with read-only access (financial transparency)
-- **ADMINUser** - Admin role with full system access
 
 ### Role-Based Access Control
 
 Each identity includes role attributes that enforce:
-- **Write Operations**: VENDOR, BUYER, BANK, ADMIN
+- **Write Operations**: VENDOR, BUYER, ADMIN
 - **Read-Only Operations**: AUDITOR, INVESTOR
 - **Audit Trail**: All operations tracked with CreatorID and LastModifiedBy
 - **Digital Signatures**: Each transaction signed with unique transaction ID

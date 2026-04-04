@@ -7,10 +7,9 @@ const router = express.Router();
 const ROLES = {
     VENDOR: 'VENDOR',
     BUYER: 'BUYER',
-    BANK: 'BANK',
+    ADMIN: 'ADMIN',
     AUDITOR: 'AUDITOR',
-    INVESTOR: 'INVESTOR',
-    ADMIN: 'ADMIN'
+    INVESTOR: 'INVESTOR'
 };
 
 // Middleware to validate a single role
@@ -209,8 +208,8 @@ router.post('/verify', validateRole(ROLES.BUYER), async (req, res) => {
     }
 });
 
-// POST /finance - Approve financing for an invoice (BANK only)
-router.post('/finance', validateRole(ROLES.BANK), async (req, res) => {
+// POST /finance - Approve financing for an invoice (ADMIN only)
+router.post('/finance', validateRole(ROLES.ADMIN), async (req, res) => {
     let gateway;
     try {
         const { invoiceId, role } = req.body;
@@ -248,7 +247,7 @@ router.post('/finance', validateRole(ROLES.BANK), async (req, res) => {
     }
 });
 // Add this to your routes.js
-router.post('/pay', validateAnyRole(['BANK', 'ADMIN']), async (req, res) => {
+router.post('/pay', validateAnyRole(['ADMIN']), async (req, res) => {
     try {
         const { paymentId, invoiceId, amount, toWallet, role } = req.body;
         
@@ -266,8 +265,8 @@ router.post('/pay', validateAnyRole(['BANK', 'ADMIN']), async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// GET /invoices - Get all invoices (AUDITOR, BANK, INVESTOR only)
-router.get('/invoices', validateAnyRole([ROLES.AUDITOR, ROLES.BANK, ROLES.INVESTOR]), async (req, res) => {
+// GET /invoices - Get all invoices (AUDITOR, ADMIN, INVESTOR only)
+router.get('/invoices', validateAnyRole([ROLES.AUDITOR, ROLES.ADMIN, ROLES.INVESTOR]), async (req, res) => {
     let gateway;
     try {
         const { role } = req.query;
@@ -337,8 +336,8 @@ router.get('/invoice/:id', async (req, res) => {
     }
 });
 
-// GET /invoice/:id/history - Get complete transaction history for an invoice (AUDITOR, BANK, INVESTOR only)
-router.get('/invoice/:id/history', validateAnyRole([ROLES.AUDITOR, ROLES.BANK, ROLES.INVESTOR]), async (req, res) => {
+// GET /invoice/:id/history - Get complete transaction history for an invoice (AUDITOR, ADMIN, INVESTOR only)
+router.get('/invoice/:id/history', validateAnyRole([ROLES.AUDITOR, ROLES.ADMIN, ROLES.INVESTOR]), async (req, res) => {
     let gateway;
     try {
         const { id } = req.params;
@@ -371,8 +370,8 @@ router.get('/invoice/:id/history', validateAnyRole([ROLES.AUDITOR, ROLES.BANK, R
     }
 });
 
-// GET /invoice/:id/history - Get complete transaction history for an invoice (AUDITOR, BANK, INVESTOR, ADMIN only)
-router.get('/invoice/:id/history', validateAnyRole([ROLES.AUDITOR, ROLES.BANK, ROLES.INVESTOR, ROLES.ADMIN]), async (req, res) => {
+// GET /invoice/:id/history - Get complete transaction history for an invoice (AUDITOR, ADMIN, INVESTOR only)
+router.get('/invoice/:id/history', validateAnyRole([ROLES.AUDITOR, ROLES.ADMIN, ROLES.INVESTOR]), async (req, res) => {
     let gateway;
     try {
         const { id } = req.params;
