@@ -78,6 +78,7 @@ const (
 	StatusValidated        = "VALIDATED"
 	StatusVerified         = "VERIFIED"
 	StatusFinanced         = "FINANCED"
+	StatusPaid             = "PAID"
 	StatusRejected         = "REJECTED"
 	POStatusActive         = "ACTIVE"
 	VendorStatusActive     = "ACTIVE"
@@ -628,19 +629,23 @@ func (s *SmartContract) ProcessPayment(ctx contractapi.TransactionContextInterfa
 	}
 
 	// --- STATE TRANSITION: Update Invoice to PAID ---
-	invoice.Status = "PAID"
+	fmt.Printf("🔄 UPDATING INVOICE STATUS: %s from %s to %s\n", invoiceId, invoice.Status, StatusPaid)
+	invoice.Status = StatusPaid
 	invoice.Timestamp = time.Now().Format(time.RFC3339)
 
+	fmt.Printf("📦 MARSHALING UPDATED INVOICE: %+v\n", invoice)
 	invoiceJSON, err := json.Marshal(invoice)
 	if err != nil {
 		return fmt.Errorf("failed to marshal updated invoice: %v", err)
 	}
 
 	// Save updated Invoice back to ledger (This is the crucial step!)
+	fmt.Printf("💾 SAVING INVOICE TO LEDGER WITH KEY: %s\n", invoiceId)
 	err = ctx.GetStub().PutState(invoiceId, invoiceJSON)
 	if err != nil {
 		return fmt.Errorf("failed to update invoice status: %v", err)
 	}
+	fmt.Printf("✅ INVOICE STATUS SUCCESSFULLY UPDATED TO: %s\n", StatusPaid)
 
 	// --- RECORD CREATION: Create Payment Object ---
 	payment := Payment{

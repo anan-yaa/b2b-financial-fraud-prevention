@@ -16,11 +16,17 @@ function validateRole(requiredRole) {
   return (req, res, next) => {
     const { role } = req.body || req.query;
 
+    console.log(`🔍 Role validation - Required: ${requiredRole}, Provided: ${role}`);
+    console.log(`🔍 Request body:`, req.body);
+    console.log(`🔍 Request query:`, req.query);
+
     if (!role) {
+      console.log(`❌ Role validation failed: No role provided`);
       return res.status(400).json({ error: "Role is required" });
     }
 
     if (role !== requiredRole) {
+      console.log(`❌ Role validation failed: ${role} !== ${requiredRole}`);
       return res
         .status(403)
         .json({
@@ -28,6 +34,7 @@ function validateRole(requiredRole) {
         });
     }
 
+    console.log(`✅ Role validation passed: ${role}`);
     next();
   };
 }
@@ -80,6 +87,53 @@ router.post("/vendor", async (req, res) => {
   } catch (error) {
     console.error("POST /vendor error:", error);
 
+    // Enhanced error reporting - extract chaincode errors
+    if (error.responses && error.responses.length > 0) {
+      console.error("Peer response details:", error.responses[0].response);
+      if (error.responses[0].response && error.responses[0].response.message) {
+        const chaincodeMessage = error.responses[0].response.message;
+        console.error("🔍 Chaincode error message:", chaincodeMessage);
+        
+        // Send specific blockchain error with 400 status instead of generic 500
+        return res.status(400).json({ 
+          error: "Blockchain Validation Failed", 
+          message: chaincodeMessage 
+        });
+      }
+    }
+
+    // Fallback for other errors
+    res.status(500).json({ error: error.message });
+  } finally {
+    if (gateway) {
+      await gateway.disconnect();
+    }
+  }
+});
+
+// GET /vendor/:id - Get a specific vendor by ID
+router.get("/vendor/:id", async (req, res) => {
+  let gateway;
+  try {
+    const { id } = req.params;
+    const { role } = req.query;
+
+    if (!role) {
+      return res
+        .status(400)
+        .json({ error: "Role is required in query parameters" });
+    }
+
+    console.log(`Getting vendor ${id} using role: ${role}`);
+    const { gateway: g, contract } = await connectFabric(role);
+    gateway = g;
+
+    const result = await contract.evaluateTransaction("ReadVendor", id);
+    const vendor = JSON.parse(result.toString());
+    res.json(vendor);
+  } catch (error) {
+    console.error("GET /vendor/:id error:", error);
+
     // Log detailed peer response if available
     if (error.responses && error.responses.length > 0) {
       console.error("Peer response details:", error.responses[0].response);
@@ -123,16 +177,22 @@ router.post("/buyer", async (req, res) => {
   } catch (error) {
     console.error("POST /buyer error:", error);
 
+    // Enhanced error reporting - extract chaincode errors
     if (error.responses && error.responses.length > 0) {
       console.error("Peer response details:", error.responses[0].response);
       if (error.responses[0].response && error.responses[0].response.message) {
-        console.error(
-          "Peer response message:",
-          error.responses[0].response.message,
-        );
+        const chaincodeMessage = error.responses[0].response.message;
+        console.error("🔍 Chaincode error message:", chaincodeMessage);
+        
+        // Send specific blockchain error with 400 status instead of generic 500
+        return res.status(400).json({ 
+          error: "Blockchain Validation Failed", 
+          message: chaincodeMessage 
+        });
       }
     }
 
+    // Fallback for other errors
     res.status(500).json({ error: error.message });
   } finally {
     if (gateway) {
@@ -169,17 +229,22 @@ router.post("/purchaseOrder", async (req, res) => {
   } catch (error) {
     console.error("POST /purchaseOrder error:", error);
 
-    // Log detailed peer response if available
+    // Enhanced error reporting - extract chaincode errors
     if (error.responses && error.responses.length > 0) {
       console.error("Peer response details:", error.responses[0].response);
       if (error.responses[0].response && error.responses[0].response.message) {
-        console.error(
-          "Peer response message:",
-          error.responses[0].response.message,
-        );
+        const chaincodeMessage = error.responses[0].response.message;
+        console.error("🔍 Chaincode error message:", chaincodeMessage);
+        
+        // Send specific blockchain error with 400 status instead of generic 500
+        return res.status(400).json({ 
+          error: "Blockchain Validation Failed", 
+          message: chaincodeMessage 
+        });
       }
     }
 
+    // Fallback for other errors
     res.status(500).json({ error: error.message });
   } finally {
     if (gateway) {
@@ -235,17 +300,22 @@ router.post("/invoice", validateRole(ROLES.VENDOR), async (req, res) => {
   } catch (error) {
     console.error("POST /invoice error:", error);
 
-    // Log detailed peer response if available
+    // Enhanced error reporting - extract chaincode errors
     if (error.responses && error.responses.length > 0) {
       console.error("Peer response details:", error.responses[0].response);
       if (error.responses[0].response && error.responses[0].response.message) {
-        console.error(
-          "Peer response message:",
-          error.responses[0].response.message,
-        );
+        const chaincodeMessage = error.responses[0].response.message;
+        console.error("🔍 Chaincode error message:", chaincodeMessage);
+        
+        // Send specific blockchain error with 400 status instead of generic 500
+        return res.status(400).json({ 
+          error: "Blockchain Validation Failed", 
+          message: chaincodeMessage 
+        });
       }
     }
 
+    // Fallback for other errors
     res.status(500).json({ error: error.message });
   } finally {
     if (gateway) {
@@ -278,17 +348,22 @@ router.post("/verify", validateRole(ROLES.BUYER), async (req, res) => {
   } catch (error) {
     console.error("POST /verify error:", error);
 
-    // Log detailed peer response if available
+    // Enhanced error reporting - extract chaincode errors
     if (error.responses && error.responses.length > 0) {
       console.error("Peer response details:", error.responses[0].response);
       if (error.responses[0].response && error.responses[0].response.message) {
-        console.error(
-          "Peer response message:",
-          error.responses[0].response.message,
-        );
+        const chaincodeMessage = error.responses[0].response.message;
+        console.error("🔍 Chaincode error message:", chaincodeMessage);
+        
+        // Send specific blockchain error with 400 status instead of generic 500
+        return res.status(400).json({ 
+          error: "Blockchain Validation Failed", 
+          message: chaincodeMessage 
+        });
       }
     }
 
+    // Fallback for other errors
     res.status(500).json({ error: error.message });
   } finally {
     if (gateway) {
@@ -315,6 +390,22 @@ router.post("/finance", validateRole(ROLES.ADMIN), async (req, res) => {
     const { gateway: g, contract } = await connectFabric(role);
     gateway = g;
 
+    // Sequence Check: Log current invoice status before ApproveFinancing
+    console.log(`🔍 Checking current status of invoice ${invoiceId} before financing...`);
+    try {
+      const currentInvoiceResult = await contract.evaluateTransaction("ReadInvoice", invoiceId);
+      const currentInvoice = JSON.parse(currentInvoiceResult.toString());
+      console.log(`📋 Current invoice status:`, {
+        invoiceId: currentInvoice.invoiceId,
+        status: currentInvoice.status,
+        amount: currentInvoice.amount,
+        vendor: currentInvoice.vendor,
+        buyer: currentInvoice.buyer
+      });
+    } catch (statusCheckError) {
+      console.error(`⚠️ Could not fetch current invoice status:`, statusCheckError.message);
+    }
+
     const transaction = contract.createTransaction("ApproveFinancing");
     await transaction.setEndorsingPeers(["peer0.org1.example.com"]);
     await transaction.submit(invoiceId);
@@ -323,17 +414,22 @@ router.post("/finance", validateRole(ROLES.ADMIN), async (req, res) => {
   } catch (error) {
     console.error("POST /finance error:", error);
 
-    // Log detailed peer response if available
+    // Enhanced error reporting - extract chaincode errors
     if (error.responses && error.responses.length > 0) {
       console.error("Peer response details:", error.responses[0].response);
       if (error.responses[0].response && error.responses[0].response.message) {
-        console.error(
-          "Peer response message:",
-          error.responses[0].response.message,
-        );
+        const chaincodeMessage = error.responses[0].response.message;
+        console.error("🔍 Chaincode error message:", chaincodeMessage);
+        
+        // Send specific blockchain error with 400 status instead of generic 500
+        return res.status(400).json({ 
+          error: "Blockchain Validation Failed", 
+          message: chaincodeMessage 
+        });
       }
     }
 
+    // Fallback for other errors
     res.status(500).json({ error: error.message });
   } finally {
     if (gateway) {
@@ -343,31 +439,126 @@ router.post("/finance", validateRole(ROLES.ADMIN), async (req, res) => {
 });
 // Add this to your routes.js
 router.post("/pay", validateAnyRole(["ADMIN"]), async (req, res) => {
+  let gateway;
   try {
     const { paymentId, invoiceId, amount, toWallet, role } = req.body;
 
-    // Connect to Fabric using the specific role
-    const { contract, gateway } = await connectFabric(role);
+    // Backend validation for required parameters
+    if (!paymentId) {
+      return res.status(400).json({ error: "paymentId is required" });
+    }
+    if (!invoiceId) {
+      return res.status(400).json({ error: "invoiceId is required" });
+    }
+    if (!amount) {
+      return res.status(400).json({ error: "amount is required" });
+    }
+    if (!toWallet) {
+      return res.status(400).json({ error: "toWallet is required" });
+    }
+    if (typeof toWallet !== 'string' || toWallet.trim().length === 0) {
+      return res.status(400).json({ error: "toWallet must be a valid non-empty string" });
+    }
 
     console.log(
       `Processing payment ${paymentId} for invoice ${invoiceId} using role: ${role}`,
     );
+    console.log(`🔍 Payment validation: toWallet=${toWallet}, amount=${amount}`);
+
+    // Connect to Fabric using the specific role
+    const { contract, gateway: g } = await connectFabric(role);
+    gateway = g;
 
     // Call the ProcessPayment function from your Go chaincode
-    await contract.submitTransaction(
-      "ProcessPayment",
-      paymentId,
-      invoiceId,
-      amount,
-      toWallet,
-    );
-
-    await gateway.disconnect();
+    const transaction = contract.createTransaction("ProcessPayment");
+    await transaction.setEndorsingPeers(["peer0.org1.example.com"]);
+    await transaction.submit(paymentId, invoiceId, amount, toWallet);
+    
+    console.log(`Payment ${paymentId} processed successfully for invoice ${invoiceId}`);
     res.json({ success: true, message: "Payment processed successfully" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Payment processing error:', error);
+    
+    // Enhanced error reporting - extract chaincode errors
+    if (error.responses && error.responses.length > 0) {
+      console.error("Peer response details:", error.responses[0].response);
+      if (error.responses[0].response && error.responses[0].response.message) {
+        const chaincodeMessage = error.responses[0].response.message;
+        console.error("🔍 Chaincode error message:", chaincodeMessage);
+        
+        // Send specific blockchain error with 400 status instead of generic 500
+        return res.status(400).json({ 
+          error: "Blockchain Validation Failed", 
+          message: chaincodeMessage 
+        });
+      }
+    }
+    
+    // Fallback for other errors
+    res.status(400).json({ 
+      error: 'Blockchain Validation Failed', 
+      message: error.message 
+    });
+  } finally {
+    if (gateway) {
+      await gateway.disconnect();
+    }
   }
 });
+
+// POST /verify - Verify invoice (BUYER only)
+router.post('/verify', validateRole(ROLES.BUYER), async (req, res) => {
+    let gateway;
+    try {
+        console.log('Received Verification Data:', req.body); // Debug: Log incoming request body
+        const { invoiceId, role } = req.body;
+        
+        if (!invoiceId) {
+            return res.status(400).json({ error: 'Missing required field: invoiceId' });
+        }
+
+        console.log(`Verifying invoice ${invoiceId} using role: ${role}`);
+        const { gateway: g, contract } = await connectFabric(role);
+        gateway = g;
+        
+        const transaction = contract.createTransaction('VerifyInvoice');
+        await transaction.setEndorsingPeers(['peer0.org1.example.com']);
+        await transaction.submit(invoiceId);
+        console.log(`Invoice ${invoiceId} verified successfully`);
+        
+        // Fetch the updated invoice details after verification
+        const result = await contract.evaluateTransaction('ReadInvoice', invoiceId);
+        const invoice = JSON.parse(result.toString());
+        
+        res.json({ 
+            success: true, 
+            message: 'Invoice verified successfully',
+            invoice: invoice 
+        });
+        
+    } catch (error) {
+        console.error('POST /verify error:', error);
+        
+        // Log detailed peer response if available
+        if (error.responses && error.responses.length > 0) {
+            console.error('Peer response details:', error.responses[0].response);
+            if (error.responses[0].response && error.responses[0].response.message) {
+                console.error('Peer response message:', error.responses[0].response.message);
+            }
+        }
+        
+        // Ensure consistent JSON error response for blockchain errors
+        res.status(400).json({ 
+            error: 'Blockchain Validation Failed', 
+            message: error.message 
+        });
+    } finally {
+        if (gateway) {
+            await gateway.disconnect();
+        }
+    }
+});
+
 // GET /invoices - Get all invoices (AUDITOR, ADMIN, INVESTOR only)
 router.get(
   "/invoices",

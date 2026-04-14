@@ -111,25 +111,25 @@ api.interceptors.response.use(
 // API functions for different endpoints
 export const invoiceAPI = {
   // Upload new invoice
-  uploadInvoice: (invoiceData) => api.post('/invoices', invoiceData),
+  uploadInvoice: (invoiceData) => api.post('/invoice', invoiceData),
   
   // Get all invoices
   getAllInvoices: () => api.get('/invoices'),
   
   // Get invoice by ID
-  getInvoiceById: (id) => api.get(`/invoices/${id}`),
+  getInvoiceById: (id) => api.get(`/invoice/${id}`),
   
   // Verify/Approve invoice (Buyer)
-  verifyInvoice: (id) => api.post(`/invoices/${id}/verify`),
+  verifyInvoice: (id) => api.post('/verify', { invoiceId: id }),
   
   // Approve financing (Admin)
-  approveFinancing: (id) => api.post(`/invoices/${id}/approve-financing`),
+  approveFinancing: (id) => api.post('/finance', { invoiceId: id }),
   
   // Process payment (Admin)
-  processPayment: (id) => api.post(`/invoices/${id}/process-payment`),
+  processPayment: (paymentData) => api.post('/pay', paymentData),
   
   // Get audit trail (Auditor)
-  getAuditTrail: (id) => api.get(`/invoices/${id}/audit-trail`),
+  getAuditTrail: (id) => api.get(`/invoice/${id}/history`),
 };
 
 export const vendorAPI = {
