@@ -20,10 +20,13 @@ const AuditorPanel = () => {
       setLoading(true);
       const response = await auditAPI.getInvoiceHistory(invoiceId.trim());
       setAuditResult(response.data);
-      toast.success('Invoice history retrieved successfully!');
+      // Clear any existing error toasts and show success
+      toast.dismiss();
+      toast.success('Invoice history retrieved successfully!', { id: 'audit-success' });
     } catch (error) {
       console.error('Error fetching audit history:', error);
       setAuditResult(null);
+      // Error toast already handled by interceptor
     } finally {
       setLoading(false);
     }

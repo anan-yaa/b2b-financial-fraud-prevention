@@ -51,11 +51,11 @@ const FraudTesting = () => {
       // Update result on error
       setTestResults(prev => prev.map(r => 
         r.timestamp === result.timestamp 
-          ? { ...r, status: 'blocked', error: error.response?.data?.message || error.message }
+          ? { ...r, status: 'blocked', error: error.message }
           : r
       ));
       
-      toast.error(`Fund Diversion Blocked: ${error.response?.data?.message || error.message}`);
+      toast.error(`Fund Diversion Blocked: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -88,11 +88,11 @@ const FraudTesting = () => {
       // Update result on error
       setTestResults(prev => prev.map(r => 
         r.timestamp === result.timestamp 
-          ? { ...r, status: 'blocked', error: error.response?.data?.message || error.message }
+          ? { ...r, status: 'blocked', error: error.message }
           : r
       ));
       
-      toast.error(`Misreporting Blocked: ${error.response?.data?.message || error.message}`);
+      toast.error(`Misreporting Blocked: ${error.message}`);
     } finally {
       setLoading(false);
     }

@@ -25,16 +25,22 @@ const VendorPanel = () => {
 
     try {
       setLoading(true);
-      await invoiceAPI.uploadInvoice({
+      // Ensure data keys match backend expectations and amount is string
+      const invoiceData = {
         invoiceId: invoiceForm.invoiceId,
         vendor: invoiceForm.vendor,
         buyer: invoiceForm.buyer,
-        amount: parseFloat(invoiceForm.amount),
-        poId: invoiceForm.poId,
+        amount: String(invoiceForm.amount), // Ensure amount is string
+        purchaseOrderId: invoiceForm.poId, // Fixed: was poId, backend expects purchaseOrderId
         deliveryProofHash: invoiceForm.deliveryProofHash,
-      });
+      };
       
-      toast.success('Invoice submitted successfully!');
+      console.log('Sending invoice data:', invoiceData); // Debug: Log what we're sending
+      await invoiceAPI.uploadInvoice(invoiceData);
+      
+      // Clear any existing error toasts and show success
+      toast.dismiss();
+      toast.success('Invoice submitted successfully!', { id: 'invoice-success' });
       setInvoiceForm({
         invoiceId: '',
         vendor: '',
@@ -45,6 +51,13 @@ const VendorPanel = () => {
       });
     } catch (error) {
       console.error('Error submitting invoice:', error);
+      // Display specific blockchain error message as toast (already handled by interceptor)
+      // No need to show duplicate error toast here since interceptor handles it
+      
+      // Enhanced error logging for debugging
+      if (error.response) {
+        console.log('Server error response:', error.response.data);
+      }
     } finally {
       setLoading(false);
     }

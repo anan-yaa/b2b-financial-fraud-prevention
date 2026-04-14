@@ -45,10 +45,13 @@ const AdminPanel = () => {
     try {
       setLoading(true);
       await vendorAPI.registerVendor(vendorForm);
-      toast.success('Vendor created successfully!');
+      // Clear any existing error toasts and show success
+      toast.dismiss();
+      toast.success('Vendor created successfully!', { id: 'vendor-success' });
       setVendorForm({ vendorId: '', name: '', maxLimit: '', authorizedWallet: '' });
     } catch (error) {
       console.error('Error creating vendor:', error);
+      // Error toast already handled by interceptor
     } finally {
       setLoading(false);
     }
@@ -73,11 +76,15 @@ const AdminPanel = () => {
       
       console.log('Sending PO data:', poData); // Debug: Log what we're sending
       await purchaseOrderAPI.createPurchaseOrder(poData);
-      toast.success('Purchase order created successfully!');
+      // Clear any existing error toasts and show success
+      toast.dismiss();
+      toast.success('Purchase order created successfully!', { id: 'po-success' });
       setPoForm({ poId: '', vendor: '', buyer: '', amount: '' });
     } catch (error) {
       console.error('Error creating PO:', error);
-      // Enhanced error logging
+      // Error toast already handled by interceptor
+      
+      // Enhanced error logging for debugging
       if (error.response) {
         console.log('Server error response:', error.response.data);
       }
@@ -96,10 +103,13 @@ const AdminPanel = () => {
     try {
       setLoading(true);
       await financeAPI.financeInvoice(financeForm.invoiceId);
-      toast.success('Invoice financed successfully!');
+      // Clear any existing error toasts and show success
+      toast.dismiss();
+      toast.success('Invoice financed successfully!', { id: 'finance-success' });
       setFinanceForm({ invoiceId: '', amount: '' });
     } catch (error) {
       console.error('Error financing invoice:', error);
+      // Error toast already handled by interceptor
     } finally {
       setLoading(false);
     }
@@ -115,10 +125,13 @@ const AdminPanel = () => {
     try {
       setLoading(true);
       await paymentAPI.processPayment(paymentForm);
-      toast.success('Payment processed successfully!');
+      // Clear any existing error toasts and show success
+      toast.dismiss();
+      toast.success('Payment processed successfully!', { id: 'payment-success' });
       setPaymentForm({ paymentId: '', invoiceId: '', amount: '', toWallet: '' });
     } catch (error) {
       console.error('Error processing payment:', error);
+      // Error toast already handled by interceptor
     } finally {
       setLoading(false);
     }

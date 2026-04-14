@@ -133,6 +133,7 @@ router.post('/purchaseOrder', async (req, res) => {
 router.post('/invoice', validateRole(ROLES.VENDOR), async (req, res) => {
     let gateway;
     try {
+        console.log('Received Invoice Data:', req.body); // Debug: Log incoming request body
         const { invoiceId, vendor, buyer, amount, purchaseOrderId, deliveryProofHash, role } = req.body;
         
         if (!invoiceId || !vendor || !buyer || !amount || !purchaseOrderId || !deliveryProofHash) {
@@ -266,6 +267,56 @@ router.post('/pay', validateAnyRole(['ADMIN']), async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// POST /verify - Verify invoice (BUYER only)
+router.post('/verify', validateRole(ROLES.BUYER), async (req, res) => {
+    let gateway;
+    try {
+        console.log('Received Verification Data:', req.body); // Debug: Log incoming request body
+        const { invoiceId, role } = req.body;
+        
+        if (!invoiceId) {
+            return res.status(400).json({ error: 'Missing required field: invoiceId' });
+        }
+
+        console.log(`Verifying invoice ${invoiceId} using role: ${role}`);
+        const { gateway: g, contract } = await connectFabric(role);
+        gateway = g;
+        
+        const transaction = contract.createTransaction('VerifyInvoice');
+        await transaction.setEndorsingPeers(['peer0.org1.example.com']);
+        await transaction.submit(invoiceId);
+        console.log(`Invoice ${invoiceId} verified successfully`);
+        
+        // Fetch the updated invoice details after verification
+        const result = await contract.evaluateTransaction('ReadInvoice', invoiceId);
+        const invoice = JSON.parse(result.toString());
+        
+        res.json({ 
+            success: true, 
+            message: 'Invoice verified successfully',
+            invoice: invoice 
+        });
+        
+    } catch (error) {
+        console.error('POST /verify error:', error);
+        
+        // Log detailed peer response if available
+        if (error.responses && error.responses.length > 0) {
+            console.error('Peer response details:', error.responses[0].response);
+            if (error.responses[0].response && error.responses[0].response.message) {
+                console.error('Peer response message:', error.responses[0].response.message);
+            }
+        }
+        
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (gateway) {
+            await gateway.disconnect();
+        }
+    }
+});
+
 // GET /invoices - Get all invoices (AUDITOR, ADMIN, INVESTOR only)
 router.get('/invoices', validateAnyRole([ROLES.AUDITOR, ROLES.ADMIN, ROLES.INVESTOR]), async (req, res) => {
     let gateway;

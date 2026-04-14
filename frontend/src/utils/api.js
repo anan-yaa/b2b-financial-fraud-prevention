@@ -66,52 +66,96 @@ api.interceptors.response.use(
       request: error.request ? 'Request was made but no response received' : 'No request made'
     });
     
-    // Handle common error scenarios
+    // Debug: Log the raw error message for verification errors
+    if (error.config?.url?.includes('/verify')) {
+      console.log('🔍 Verification Error Debug:', {
+        rawData: error.response?.data,
+        rawError: error.response?.data?.error,
+        rawMessage: error.response?.data?.message,
+        extractedMessage: error.response?.data?.error || error.response?.data?.message || 'No message found'
+      });
+    }
+    
+    // Extract specific blockchain error message
+    let errorMessage = 'An error occurred';
+    
+    if (error.response && error.response.data) {
+      // Handle blockchain peer responses that may contain duplicate messages
+      let rawMessage = error.response.data.error || 
+                      error.response.data.message || 
+                      error.response.data.error?.message || 
+                      'Server validation failed';
+      
+      // Extract unique message from blockchain peer responses
+      // Format: "No valid responses from any peers. Errors: peer=peer0.org1.example.com, status=500, message=the invoice INV_001 already exists"
+      if (rawMessage.includes('No valid responses from any peers')) {
+        const messageMatch = rawMessage.match(/message=([^,]+)/);
+        if (messageMatch) {
+          errorMessage = messageMatch[1].trim();
+        } else {
+          errorMessage = rawMessage;
+        }
+      } else {
+        // For verification errors and other direct messages, use the full message
+        // This ensures messages like "invoice INV_001 cannot be verified, current status: VALIDATED" are displayed completely
+        errorMessage = rawMessage;
+      }
+    } else if (error.request) {
+      errorMessage = 'Network Error - Unable to connect to the server. Check if backend is running on port 3000.';
+    } else {
+      errorMessage = 'Request Error - Please try again';
+    }
+    
+    // Handle common error scenarios with specific messages
     if (error.response) {
       const { status, data } = error.response;
       
       switch (status) {
         case 400:
-          toast.error(data.message || 'Bad Request');
+          // Use the specific blockchain error message with unique ID
+          toast.error(errorMessage, { id: 'api-error-400' });
           break;
         case 401:
-          toast.error('Unauthorized - Please check your role permissions');
+          toast.error('Unauthorized - Please check your role permissions', { id: 'api-error-401' });
           break;
         case 403:
-          toast.error('Forbidden - You do not have permission for this action');
+          toast.error('Forbidden - You do not have permission for this action', { id: 'api-error-403' });
           break;
         case 404:
-          toast.error('Resource not found');
+          toast.error('Resource not found', { id: 'api-error-404' });
           break;
         case 409:
-          if (data.message && data.message.includes('Double Disbursement')) {
-            toast.error('Double Disbursement Blocked: This invoice has already been processed');
-          } else if (data.message && data.message.includes('Discovery Error')) {
-            toast.error('Discovery Error: There was an issue with the blockchain transaction');
+          if (errorMessage.includes('Double Disbursement')) {
+            toast.error('Double Disbursement Blocked: This invoice has already been processed', { id: 'api-error-double-disbursement' });
+          } else if (errorMessage.includes('Discovery Error')) {
+            toast.error('Discovery Error: There was an issue with the blockchain transaction', { id: 'api-error-discovery' });
           } else {
-            toast.error(data.message || 'Conflict');
+            toast.error(errorMessage, { id: 'api-error-409' });
           }
           break;
         case 500:
-          toast.error('Server Error - Please try again later');
+          toast.error(errorMessage || 'Server Error - Please try again later', { id: 'api-error-500' });
           break;
         default:
-          toast.error(data.message || 'An error occurred');
+          toast.error(errorMessage, { id: `api-error-${status}` });
       }
-    } else if (error.request) {
-      toast.error('Network Error - Unable to connect to the server. Check if backend is running on port 3000.');
     } else {
-      toast.error('Request Error - Please try again');
+      toast.error(errorMessage, { id: 'network-error' });
     }
     
-    return Promise.reject(error);
+    // Create a custom error with the specific message for components to use
+    const customError = new Error(errorMessage);
+    customError.response = error.response;
+    customError.originalError = error;
+    
+    return Promise.reject(customError);
   }
 );
 
 // API functions for different endpoints
 export const invoiceAPI = {
   // Upload new invoice
-  uploadInvoice: (invoiceData) => api.post('/invoices', invoiceData),
+  uploadInvoice: (invoiceData) => api.post('/invoice', invoiceData),
   
   // Get all invoices
   getAllInvoices: () => api.get('/invoices'),
@@ -181,7 +225,7 @@ export const validationAPI = {
 
 export const financeAPI = {
   // Finance invoice
-  financeInvoice: (invoiceId) => api.post('/finance', { invoiceId }),
+  financeInvoice: (invoiceId) => api.post('/finance', { invoiceId, role: 'ADMIN' }),
   
   // Get financing status
   getFinancingStatus: (invoiceId) => api.get(`/finance/${invoiceId}/status`),
