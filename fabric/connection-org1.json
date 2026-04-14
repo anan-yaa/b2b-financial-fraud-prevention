@@ -42,7 +42,7 @@
         "orderer.example.com": {
             "url": "grpcs://localhost:7050",
             "tlsCACerts": {
-                "path": "/home/ananyaa/fabric/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/ca.crt"
+                "path": "/home/vidhya/projects/miniproject/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/ca.crt"
             },
             "grpcOptions": {
                 "ssl-target-name-override": "orderer.example.com",
@@ -54,7 +54,7 @@
         "peer0.org1.example.com": {
             "url": "grpcs://localhost:7051",
             "tlsCACerts": {
-                "path": "/home/ananyaa/fabric/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt"
+                "path": "/home/vidhya/projects/miniproject/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt"
             },
             "grpcOptions": {
                 "ssl-target-name-override": "peer0.org1.example.com",
@@ -67,7 +67,7 @@
             "url": "https://localhost:7054",
             "caName": "ca-org1",
             "tlsCACerts": {
-                "path": "/home/ananyaa/fabric/fabric-samples/test-network/organizations/fabric-ca/org1/ca-cert.pem"
+                "path": "/home/vidhya/projects/miniproject/fabric-samples/test-network/organizations/fabric-ca/org1/ca-cert.pem"
             },
             "httpOptions": {
                 "verify": false

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { validationAPI } from '../utils/api';
+import { validationAPI, purchaseOrderAPI, paymentAPI } from '../utils/api';
 import { CheckCircle, Loader, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -7,6 +7,49 @@ const BuyerPanel = () => {
   const [loading, setLoading] = useState(false);
   const [invoiceId, setInvoiceId] = useState('');
   const [validationResult, setValidationResult] = useState(null);
+  const [poForm, setPoForm] = useState({ poId: '', vendor: '', buyer: '', amount: '' });
+  const [initiatePaymentForm, setInitiatePaymentForm] = useState({ paymentId: '', invoiceId: '', amount: '', toWallet: '' });
+
+  const handlePoSubmit = async (e) => {
+    e.preventDefault();
+    const { poId, vendor, buyer, amount } = poForm;
+    if (!poId || !vendor || !buyer || !amount) {
+      toast.error('Please fill all purchase order fields');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const poData = { poId, vendor, buyer, amount: String(amount) };
+      await purchaseOrderAPI.createPurchaseOrder(poData);
+      toast.success('Purchase order created successfully!');
+      setPoForm({ poId: '', vendor: '', buyer: '', amount: '' });
+    } catch (error) {
+      console.error('Error creating PO:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInitiatePaymentSubmit = async (e) => {
+    e.preventDefault();
+    const { paymentId, invoiceId, amount, toWallet } = initiatePaymentForm;
+    if (!paymentId || !invoiceId || !amount || !toWallet) {
+      toast.error('Please fill all payment fields');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await paymentAPI.processPayment({ paymentId, invoiceId, amount, toWallet });
+      toast.success('Payment initiated successfully!');
+      setInitiatePaymentForm({ paymentId: '', invoiceId: '', amount: '', toWallet: '' });
+    } catch (error) {
+      console.error('Error initiating payment:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleVerify = async (e) => {
     e.preventDefault();
@@ -36,6 +79,55 @@ const BuyerPanel = () => {
 
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Create Purchase Order (Buyer) */}
+      <div className="card mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Create Purchase Order</h2>
+        <form onSubmit={handlePoSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">PO ID</label>
+            <input
+              type="text"
+              value={poForm.poId}
+              onChange={(e) => setPoForm({...poForm, poId: e.target.value})}
+              className="input-field"
+              placeholder="PO_001"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+            <input
+              type="text"
+              value={poForm.vendor}
+              onChange={(e) => setPoForm({...poForm, vendor: e.target.value})}
+              className="input-field"
+              placeholder="VEND_CA_FINAL"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Buyer</label>
+            <input
+              type="text"
+              value={poForm.buyer}
+              onChange={(e) => setPoForm({...poForm, buyer: e.target.value})}
+              className="input-field"
+              placeholder="BUYER_001"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+            <input
+              type="number"
+              value={poForm.amount}
+              onChange={(e) => setPoForm({...poForm, amount: e.target.value})}
+              className="input-field"
+              placeholder="50000"
+            />
+          </div>
+          <button type="submit" disabled={loading} className="btn btn-primary w-full">
+            {loading ? <Loader className="animate-spin mx-auto" size={20} /> : 'Create Purchase Order'}
+          </button>
+        </form>
+      </div>
       <div className="card">
         <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
           <CheckCircle size={28} className="mr-3 text-green-600" />
@@ -77,6 +169,54 @@ const BuyerPanel = () => {
               </>
             )}
           </button>
+        </form>
+      </div>
+      
+      {/* Initiate Payment (moved from Admin) */}
+      <div className="card mt-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Initiate Payment</h2>
+        <form onSubmit={handleInitiatePaymentSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Payment ID</label>
+            <input
+              type="text"
+              value={initiatePaymentForm.paymentId}
+              onChange={(e) => setInitiatePaymentForm({...initiatePaymentForm, paymentId: e.target.value})}
+              className="input-field"
+              placeholder="PAY_001"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Invoice ID</label>
+            <input
+              type="text"
+              value={initiatePaymentForm.invoiceId}
+              onChange={(e) => setInitiatePaymentForm({...initiatePaymentForm, invoiceId: e.target.value})}
+              className="input-field"
+              placeholder="INV_001"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+            <input
+              type="number"
+              value={initiatePaymentForm.amount}
+              onChange={(e) => setInitiatePaymentForm({...initiatePaymentForm, amount: e.target.value})}
+              className="input-field"
+              placeholder="25000"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">To Wallet</label>
+            <input
+              type="text"
+              value={initiatePaymentForm.toWallet}
+              onChange={(e) => setInitiatePaymentForm({...initiatePaymentForm, toWallet: e.target.value})}
+              className="input-field"
+              placeholder="0xVENDOR_WALLET"
+            />
+          </div>
+          <button type="submit" disabled={loading} className="btn btn-primary w-full">Initiate Payment</button>
         </form>
       </div>
       

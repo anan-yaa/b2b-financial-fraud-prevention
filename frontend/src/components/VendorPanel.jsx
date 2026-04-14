@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { invoiceAPI } from '../utils/api';
+import { invoiceAPI, financeAPI } from '../utils/api';
 import { FileText, Plus, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -12,6 +12,11 @@ const VendorPanel = () => {
     amount: '',
     poId: '',
     deliveryProofHash: '',
+  });
+
+  const [requestPaymentForm, setRequestPaymentForm] = useState({
+    invoiceId: '',
+    amount: '',
   });
 
   const handleSubmit = async (e) => {
@@ -29,9 +34,10 @@ const VendorPanel = () => {
         invoiceId: invoiceForm.invoiceId,
         vendor: invoiceForm.vendor,
         buyer: invoiceForm.buyer,
-        amount: parseFloat(invoiceForm.amount),
+          amount: String(invoiceForm.amount),
         poId: invoiceForm.poId,
-        deliveryProofHash: invoiceForm.deliveryProofHash,
+          purchaseOrderId: String(invoiceForm.poId),
+          deliveryProofHash: invoiceForm.deliveryProofHash,
       });
       
       toast.success('Invoice submitted successfully!');
@@ -45,6 +51,25 @@ const VendorPanel = () => {
       });
     } catch (error) {
       console.error('Error submitting invoice:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRequestPaymentSubmit = async (e) => {
+    e.preventDefault();
+    if (!requestPaymentForm.invoiceId) {
+      toast.error('Please fill Invoice ID');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await financeAPI.financeInvoice(requestPaymentForm.invoiceId);
+      toast.success('Request for invoice payment submitted!');
+      setRequestPaymentForm({ invoiceId: '', amount: '' });
+    } catch (error) {
+      console.error('Error requesting payment:', error);
     } finally {
       setLoading(false);
     }
@@ -85,30 +110,30 @@ const VendorPanel = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vendor Name
-              </label>
+                  Vendor ID
+                </label>
               <input
                 type="text"
                 name="vendor"
                 value={invoiceForm.vendor}
                 onChange={handleInputChange}
                 className="input-field"
-                placeholder="Ananyaa Corp"
+                placeholder="VENDOR_002"
                 required
               />
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Buyer Name
-              </label>
+                  Buyer ID
+                </label>
               <input
                 type="text"
                 name="buyer"
                 value={invoiceForm.buyer}
                 onChange={handleInputChange}
                 className="input-field"
-                placeholder="Buyer Corp"
+                placeholder="BUYER_001"
                 required
               />
             </div>
@@ -183,6 +208,39 @@ const VendorPanel = () => {
         </form>
       </div>
       
+      {/* Request Invoice Payment (moved from Admin) */}
+      <div className="card mt-6">
+        <h3 className="text-lg font-medium mb-4 flex items-center">
+          <FileText size={20} className="mr-2 text-purple-600" />
+          Request Invoice Payment
+        </h3>
+        <form onSubmit={handleRequestPaymentSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Invoice ID</label>
+            <input
+              type="text"
+              value={requestPaymentForm.invoiceId}
+              onChange={(e) => setRequestPaymentForm({...requestPaymentForm, invoiceId: e.target.value})}
+              className="input-field"
+              placeholder="INV_001"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+            <input
+              type="number"
+              value={requestPaymentForm.amount}
+              onChange={(e) => setRequestPaymentForm({...requestPaymentForm, amount: e.target.value})}
+              className="input-field"
+              placeholder="25000"
+            />
+          </div>
+          <button type="submit" disabled={loading} className="btn btn-success w-full">
+            {loading ? <Loader className="animate-spin mx-auto" size={20} /> : 'Request Payment'}
+          </button>
+        </form>
+      </div>
+
       {/* Instructions */}
       <div className="mt-6 p-4 bg-blue-50 rounded-lg">
         <h3 className="text-sm font-medium text-blue-900 mb-2">Instructions:</h3>
