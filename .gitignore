@@ -1,4 +1,10 @@
 # Node.js
+
+node_modules/
+wallet/
+.env
+fabric-ca/
+
 node_modules/
 npm-debug.log*
 yarn-debug.log*

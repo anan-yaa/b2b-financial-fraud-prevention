@@ -11,7 +11,6 @@ const ROLES = {
     AUDITOR: 'AUDITOR',
     INVESTOR: 'INVESTOR'
 };
-
 // Middleware to validate a single role
 function validateRole(requiredRole) {
     return (req, res, next) => {
@@ -91,9 +90,11 @@ router.post('/vendor', async (req, res) => {
 router.post('/purchaseOrder', async (req, res) => {
     let gateway;
     try {
+        console.log('Incoming PO Data:', req.body); // Debug: Log incoming request body
         const { poId, vendor, buyer, amount, role } = req.body;
         
         if (!poId || !vendor || !buyer || !amount) {
+            console.log('Missing fields validation failed:', { poId, vendor, buyer, amount });
             return res.status(400).json({ 
                 error: 'Missing required fields: poId, vendor, buyer, amount' 
             });
