@@ -9,6 +9,7 @@ This system implements a comprehensive fraud prevention mechanism using blockcha
 ## Fraud Prevention Features
 
 ### 1. Fake Invoice Prevention
+
 - **Pre-validation Rules**: Every invoice undergoes mandatory validation:
   - Vendor registration verification
   - Purchase order existence and active status check
@@ -19,6 +20,7 @@ This system implements a comprehensive fraud prevention mechanism using blockcha
 - **Timestamping**: All transactions are timestamped for audit trails
 
 ### 2. Fund Diversion Prevention
+
 - **Authorized Wallet Registry**: Each vendor registers an authorized cryptocurrency wallet
 - **Certified Identity**: Vendors must have certified identity verification
 - **Linked Invoice Payments**: Payments can only be made against approved invoices
@@ -26,12 +28,14 @@ This system implements a comprehensive fraud prevention mechanism using blockcha
 - **No Free Transfers**: No standalone transfer functions exist
 
 ### 3. Financial Misreporting Prevention
+
 - **Immutable Ledger**: All financial data is stored on blockchain with immutability
 - **Digital Signatures**: Every transaction is cryptographically signed
 - **Real-time Visibility**: Authorized parties have real-time read access
 - **Audit Trail**: Complete transaction history with timestamps
 
 ### 4. Double Disbursement Prevention
+
 - **Unique Invoice Hash**: Each invoice receives a unique hash identifier
 - **Status Locking**: Invoice states prevent multiple financing attempts
 - **Single Source of Truth**: Blockchain serves as the authoritative record
@@ -39,6 +43,7 @@ This system implements a comprehensive fraud prevention mechanism using blockcha
 ## System Architecture
 
 ### Components
+
 - **Hyperledger Fabric Network**: Blockchain infrastructure
 - **Go Chaincode**: Smart contracts for business logic
 - **Node.js API Server**: RESTful API for client interactions
@@ -46,6 +51,7 @@ This system implements a comprehensive fraud prevention mechanism using blockcha
 - **Fabric SDK**: Node.js SDK for blockchain integration
 
 ### Participants
+
 - **Vendor**: Submits invoices and receives payments
 - **Buyer**: Verifies invoices and approves transactions
 - **Admin**: Provides financing and processes payments
@@ -62,12 +68,14 @@ This system implements a comprehensive fraud prevention mechanism using blockcha
 ## Installation
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/anan-yaa/b2b-financial-fraud-prevention.git
 cd b2b-financial-fraud-prevention
 ```
 
 ### 2. Install Dependencies
+
 ```bash
 # Install Node.js dependencies
 npm install
@@ -79,6 +87,7 @@ cd ..
 ```
 
 ### 3. Setup Fabric CA and Hyperledger Fabric
+
 ```bash
 # Start Fabric CA server
 ./startCA.sh
@@ -102,14 +111,18 @@ cd ../../
 ## Configuration
 
 ### Connection Profile
+
 Update `fabric/connection-org1.json` with your network configuration:
+
 - Peer endpoints
 - Orderer endpoints
 - Certificate authority URLs
 - TLS certificate paths
 
 ### Environment Variables
+
 Create `.env` file for sensitive configuration:
+
 ```
 PORT=3000
 FABRIC_NETWORK=mychannel
@@ -119,11 +132,13 @@ CHAINCODE_NAME=basic
 ## Usage
 
 ### 1. Start Fabric CA Server
+
 ```bash
 ./startCA.sh
 ```
 
 ### 2. Enroll and Register Identities
+
 ```bash
 # Enroll bootstrap admin
 node enrollAdmin.js
@@ -133,6 +148,7 @@ node registerUser.js
 ```
 
 ### 3. Start Fabric Network (if not already running)
+
 ```bash
 cd fabric-samples/test-network
 ./network.sh up createChannel
@@ -144,6 +160,7 @@ cd ../../
 ```
 
 ### 4. Start the API Server
+
 ```bash
 node app.js
 ```
@@ -153,20 +170,29 @@ The API server will start on `http://localhost:3000`
 ## API Endpoints
 
 ### Vendor Management
+
 - `POST /vendor` - Register a new vendor
 - `POST /purchaseOrder` - Create a purchase order
 
+### Buyer Management
+
+- `POST /buyer` - Register a new buyer
+
 ### Invoice Operations
+
 - `POST /invoice` - Create a new invoice (Vendor only)
 - `POST /verify` - Verify an invoice (Buyer only)
 - `POST /finance` - Approve financing (Admin only)
 
 ### Query Operations
+
 - `GET /invoices` - Get all invoices (Auditor, Admin, Investor only)
 - `GET /invoice/:id` - Get specific invoice by ID
 
 ### Request Format
+
 All POST requests require a `role` parameter:
+
 ```json
 {
   "field1": "value1",
@@ -178,7 +204,9 @@ All POST requests require a `role` parameter:
 ## Chaincode Functions
 
 ### Core Functions
+
 - `RegisterVendor(vendorId, name, maxLimit, authorizedWallet)`
+- `RegisterBuyer(buyerId, name, authorizedWallet)`
 - `CreatePurchaseOrder(poId, vendor, buyer, amount)`
 - `CreateInvoice(invoiceId, vendor, buyer, amount, purchaseOrderId, deliveryProofHash)`
 - `VerifyInvoice(invoiceId)`
@@ -186,6 +214,7 @@ All POST requests require a `role` parameter:
 - `ProcessPayment(paymentId, invoiceId, amount, toWallet)`
 
 ### Query Functions
+
 - `GetAllInvoices()` - Returns all invoices
 - `ReadInvoice(invoiceId)` - Returns specific invoice
 - `ReadVendor(vendorId)` - Returns vendor information
@@ -194,20 +223,22 @@ All POST requests require a `role` parameter:
 ## Security Features
 
 ### Access Control
+
 - Role-based access control for all operations
 - Identity verification through Fabric CA
 - Transaction endorsement policies
 
 ### Data Protection
+
 - All sensitive data encrypted on blockchain
 - Private data collections for confidential information
 - TLS encryption for all network communications
 
 ### Audit Trail
+
 - Complete transaction history
 - Immutable timestamp records
 - Digital signatures for all participants
-
 
 ## Troubleshooting
 
@@ -270,11 +301,13 @@ This system uses **Fabric CA** for dynamic identity management instead of static
 ### Identity Setup
 
 1. **Start Fabric CA Server:**
+
    ```bash
    ./startCA.sh
    ```
 
 2. **Enroll Bootstrap Admin:**
+
    ```bash
    node enrollAdmin.js
    ```
@@ -296,6 +329,7 @@ This system uses **Fabric CA** for dynamic identity management instead of static
 ### Role-Based Access Control
 
 Each identity includes role attributes that enforce:
+
 - **Write Operations**: VENDOR, BUYER, ADMIN
 - **Read-Only Operations**: AUDITOR, INVESTOR
 - **Audit Trail**: All operations tracked with CreatorID and LastModifiedBy
@@ -304,13 +338,17 @@ Each identity includes role attributes that enforce:
 ## Configuration
 
 ### Connection Profile
+
 The `fabric/connection-org1.json` is configured for Fabric CA:
+
 - **CA Endpoint**: `https://localhost:7054`
 - **TLS Certificates**: Local Fabric CA certificates
 - **Discovery**: Enabled for Docker networking
 
 ### Wallet Management
+
 Identities are stored in `./wallet/` directory:
+
 - **Format**: File system wallet using fabric-network SDK
 - **Dynamic**: New identities can be registered via Fabric CA
 - **Role Attributes**: Each identity includes role-based permissions
